@@ -1,0 +1,15 @@
+[Unit]
+Description=FCB1010
+After=network.target
+
+[Service]
+ExecStart=/home/pi/FCB1010Bass/FCB1010ToBass 20
+WorkingDirectory=/home/pi/FCB1010Bass
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+
