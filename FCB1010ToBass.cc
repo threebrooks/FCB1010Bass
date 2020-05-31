@@ -4,6 +4,23 @@
 #include <alsa/asoundlib.h>
 #include <alloca.h>
 
+int param_val_to_note(int val, int octave) {
+  int delta = 0;
+  if (val == 1) delta = 0; // 1
+  else if (val == 6) delta = 1; // 6
+  else if (val == 2) delta = 2; // 2
+  else if (val == 7) delta = 3; // 7
+  else if (val == 3) delta = 4; // 3
+  else if (val == 8) delta = 5; // 8 
+  else if (val == 4) delta = 6; // 4
+  else if (val == 9) delta = 7; // 9
+  else if (val == 5) delta = 8; // 5
+  else if (val == 0) delta = 9; // 10
+  else if (val == 11) delta = 10; // Down
+  else if (val == 10) delta = 11; // Up
+  return 40+12*octave+delta;
+}
+
 int main(int argc, char *argv[]) {
 
   snd_seq_t *seq_handle;
@@ -49,7 +66,7 @@ int main(int argc, char *argv[]) {
     while(snd_seq_event_input(seq_handle, &ev) >= 0) {
       if (ev->type == SND_SEQ_EVENT_CONTROLLER) {
         snd_seq_ev_ctrl_t& ctrl = ev->data.control;
-        printf("Got note-on/off: channel %d param %d value %d\n", ctrl.channel, ctrl.param, ctrl.value);fflush(stdout);
+        //printf("Got note-on/off: channel %d param %d value %d\n", ctrl.channel, ctrl.param, ctrl.value);fflush(stdout);
         switch (ctrl.param) {
           case 104:
           {
@@ -64,7 +81,7 @@ int main(int argc, char *argv[]) {
         }
         snd_seq_ev_note_t& note = ev->data.note;
         note.channel = ctrl.channel;
-        note.note = ctrl.value + 59;
+        note.note = param_val_to_note(ctrl.value, 0);
         note.velocity = 120;
       }
       snd_seq_ev_set_source(ev, midi_device_port.port);
@@ -72,7 +89,6 @@ int main(int argc, char *argv[]) {
       snd_seq_ev_set_direct(ev);
       snd_seq_event_output_direct(seq_handle, ev);
       snd_seq_drain_output(seq_handle);
-      //snd_seq_free_event(ev);
     }
   }
 }
