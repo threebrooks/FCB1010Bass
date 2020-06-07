@@ -21,6 +21,12 @@ int param_val_to_note(int val, int octave) {
   return 40+12*octave+delta;
 }
 
+int get_octave(int val) { 
+  if (val >= (0.9*128)) return 1;
+  else if (val <= 0.1*128) return -1;
+  else return 0;
+}
+
 int main(int argc, char *argv[]) {
 
   snd_seq_t *seq_handle;
@@ -60,14 +66,35 @@ int main(int argc, char *argv[]) {
     fprintf(stderr,"Cannot connect from port %d:%d %s", midi_device_port.client, midi_device_port.port, snd_strerror(err));
     return -1;
   }
+
+  int octave = 0;
+
+  snd_seq_event_t all_off_ev;
+  snd_seq_ev_set_source(&all_off_ev, midi_device_port.port);
+  snd_seq_ev_set_subs(&all_off_ev);  
+  snd_seq_ev_set_direct(&all_off_ev);
+  all_off_ev.type = SND_SEQ_EVENT_CONTROLLER;
   while (1) {
     snd_seq_event_t *ev;
   
     while(snd_seq_event_input(seq_handle, &ev) >= 0) {
       if (ev->type == SND_SEQ_EVENT_CONTROLLER) {
         snd_seq_ev_ctrl_t& ctrl = ev->data.control;
-        //printf("Got note-on/off: channel %d param %d value %d\n", ctrl.channel, ctrl.param, ctrl.value);fflush(stdout);
+
+        all_off_ev.data.control.channel = ctrl.channel;  
+        all_off_ev.data.control.param = MIDI_CTL_ALL_SOUNDS_OFF;  
+        snd_seq_event_output_direct(seq_handle, &all_off_ev);
+        all_off_ev.data.control.param = MIDI_CTL_RESET_CONTROLLERS;  
+        snd_seq_event_output_direct(seq_handle, &all_off_ev);
+        snd_seq_drain_output(seq_handle);
+       
+        printf("Got note-on/off: channel %d param %d value %d\n", ctrl.channel, ctrl.param, ctrl.value);fflush(stdout);
         switch (ctrl.param) {
+          case 102:
+          {
+            octave = get_octave(ctrl.value);
+          }
+          break;
           case 104:
           {
             ev->type = SND_SEQ_EVENT_NOTEON;
@@ -81,7 +108,7 @@ int main(int argc, char *argv[]) {
         }
         snd_seq_ev_note_t& note = ev->data.note;
         note.channel = ctrl.channel;
-        note.note = param_val_to_note(ctrl.value, 0);
+        note.note = param_val_to_note(ctrl.value, octave);
         note.velocity = 120;
       }
       snd_seq_ev_set_source(ev, midi_device_port.port);
