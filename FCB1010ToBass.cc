@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <alsa/asoundlib.h>
 #include <alloca.h>
+#include <vector>
 
 int param_val_to_note(int val, int octave) {
   int delta = 0;
@@ -25,6 +26,28 @@ int get_octave(int val) {
   if (val >= (0.9*128)) return 1;
   else if (val <= 0.1*128) return -1;
   else return 0;
+}
+
+std::vector<int> sequence = {1,0,-1,0,1,0,-1};
+int idx_in_sequence = 0;
+void add_shutdown_event(int val) {
+  int new_pos = sequence[idx_in_sequence];
+  if (val >= (0.9*128)) new_pos = 1;
+  else if (val >= (0.3*128) && val <= (0.7*128)) new_pos = 0;
+  else if (val <= 0.1*128) new_pos = -1;
+  //printf("val %i newpos %i\n",val,new_pos);
+  if (sequence[idx_in_sequence] == new_pos) {
+  } else if (sequence[idx_in_sequence+1] == new_pos) {
+    idx_in_sequence++; 
+    //printf("Advance\n");
+  } else {
+    idx_in_sequence = 0;
+    //printf("Reset\n");
+  }
+  if (idx_in_sequence >= sequence.size()-1) {
+    printf("Shutdown\n");
+    system("shutdown -h now");
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -88,11 +111,16 @@ int main(int argc, char *argv[]) {
         snd_seq_event_output_direct(seq_handle, &all_off_ev);
         snd_seq_drain_output(seq_handle);
        
-        printf("Got note-on/off: channel %d param %d value %d\n", ctrl.channel, ctrl.param, ctrl.value);fflush(stdout);
+        //printf("Got note-on/off: channel %d param %d value %d\n", ctrl.channel, ctrl.param, ctrl.value);fflush(stdout);
         switch (ctrl.param) {
           case 102:
           {
             octave = get_octave(ctrl.value);
+          }
+          break;
+          case 103:
+          {
+            add_shutdown_event(ctrl.value);
           }
           break;
           case 104:
